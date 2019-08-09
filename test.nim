@@ -1,5 +1,5 @@
 
-from compiler/ast import getInt
+from embeddedNims/compiler/ast import getInt, toInt64
 
 import embeddedNims/enims
 import state
@@ -19,10 +19,11 @@ proc main =
 
     # Calls the nims proc subtract with the arguments 8 and 12, and prints the result
     # We need to use procs like newIntNode and getInt since we're dealing with PNode types here
-    echo "From NIM to NIMS and back:    8 - 12 = ", script1.call("subtract",
-        [toNode(8), toNode(12)]).getInt()
+    let node = script1.call("subtract", [toNode(8), toNode(12)])
+    echo "From NIM to NIMS and back:    8 - 12 = ", toInt64(getInt(node))
+    script1.call("someAdd")
 
-    script2.call("update")
+    script2.call("updateObj")
 
     # Try hot loading
     when false:

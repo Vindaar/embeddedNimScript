@@ -19,7 +19,7 @@ import apiImpl
 
 
 # The path to the directory that contains the scripts, api declaration, and stdlib source
-let 
+let
   scriptsDir = getAppDir() / "scripts"
   configRef = newConfigRef()
   identCache = newIdentCache()
@@ -141,13 +141,13 @@ proc hasProc* (script: Script, procName: string): bool =
 
 
 proc call* (script: Script, procName: string,
-    args: openArray[PNode] = []): PNode {.discardable.} =
+            args: openArray[PNode] = []): PNode {.discardable.} =
     # Check the watcher
     if not script.watcher.isNil and script.watcher.isReady:
       echo script.moduleName, " changed - reloading"
       script.reload()
       script.watcher = spawn watch script.filename
-  
+
     setupGlobalCtx(script.mainModule, script.graph)
 
     let prc = script.getProc(procName)
