@@ -36,21 +36,6 @@ type
         context*: PCtx
         watcher*: FlowVar[int]
 
-#proc getNode*(a: VmArgs; i: Natural): PNode =
-#  doAssert i < a.rc-1
-#  let s = cast[seq[TFullReg]](a.slots)
-#  doAssert s[i+a.rb+1].kind == rkNode
-#  result = s[i+a.rb+1].node
-
-#type
-#  SomeObj = object
-#    name: string
-#    val: float
-
-#proc fill[T](x: var SomeObj, field: string, val: T) =
-
-
-
 #[ Structure of AST for objects:
 - Node:
   - nkEmpty ??
@@ -75,12 +60,6 @@ doAssert x[2][0].sym.name.s == "val"
 doAssert x[2][1].kind == nkFloatLit
 result.val = x[2][1].floatVal
 ]#
-
-template setStrField(res: var SomeObj, n: PNode, fieldName: string): NimNode =
-  doAssert n.kind == nkExprColonExpr
-  doAssert n.sons[0].kind == nkSym
-  doAssert n.sons[0].sym.name.s == "name"
-  doAssert n.sons[1].kind == nkStrLit
 
 proc extractName(n: NimNode): string =
   case n.kind
@@ -162,16 +141,6 @@ proc handleSeq(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
   # type specific doAssert and assignment
   # now have to iterate over the seq elements
 
-  #case dtype.strVal
-  #of "float":
-  #  result.add addFloatField(nId, idx, name, dtype)
-  #of "int":
-  #  result.add addIntField(nId, idx, name, dtype)
-  #of "string":
-  #  result.add addStringField(nId, idx, name, dtype)
-  #else:
-  #  error("handleScalar ??? " & $dtype.strVal)
-
 macro genGetProc(t: typedesc): untyped =
   let tImpl = t.getImpl
   echo "\n\n\n\n\n"
@@ -245,26 +214,6 @@ proc getObj(a: VmArgs, i: Natural): SomeObj =
   doAssert n.sons[2].sons[0].sym.name.s == "val"
   doAssert n.sons[2].sons[1].kind == nkFloatLit, "was " & $n.sons[2].sons[1].kind
   result.val = n.sons[2].sons[1].floatVal
-  #for x in n.sons:
-  #  case x.kind
-  #  of nkExprColonExpr:
-  #    echo "Is ", x.kind, " w ", x
-  #    # iterate (name: val) pairs
-  #    for y in x.sons:
-  #      case y.kind
-  #      of nkSym:
-  #        # this is the field we need to fill
-  #        field = y
-  #      of nkFloatLit, nkStrLit:
-  #        # the value
-  #        val = y
-  #      else:
-  #        echo "also broken ", y.kind
-  #      echo "y is ", y.kind, " w ", y
-  #  else:
-  #    echo "broken ", x.kind
-  #echo "F, ", field, " v, ", val
-
 
 proc exposeScriptApi* (script: Script) =
     template expose (procName, procBody: untyped): untyped {.dirty.} =
