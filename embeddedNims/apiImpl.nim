@@ -5,7 +5,7 @@ from compiler/modulegraphs import ModuleGraph
 
 from compiler/vm import
     # Getting values from VmArgs
-    getInt, getFloat, getString, getBool, getNode,
+    getInt, getFloat, getString, getBool, getNode, getVarNode,
     # Setting result (return value)
     setResult
 
@@ -94,7 +94,7 @@ macro genGetProc(t: typedesc): untyped =
 genGetProc(SomeObj)
 
 proc getObj(a: VmArgs, i: Natural): SomeObj =
-  let n = getNode(a, i)
+  let n = getVarNode(a, i)
   var field: PNode
   var val: PNode
   doAssert n.sons[0].kind == nkEmpty

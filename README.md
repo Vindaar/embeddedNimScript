@@ -29,7 +29,7 @@ vmhooks needs to grow a proc like:
 proc getVarNode*(a: VmArgs; i: Natural): PNode =
   doAssert i < a.rc-1
   let s = cast[seq[TFullReg]](a.slots)
-  doAssert s.kind == rkRegisterAddr
+  doAssert s[i+a.rb+1].kind == rkRegisterAddr
   let sreal = s[i+a.rb+1].regAddr[]
   doAssert sreal.kind == rkNode
   result = sreal.node
