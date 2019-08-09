@@ -21,7 +21,6 @@ Furthermore, ``embeddedNimScript/enims.nim`` assumes these folders and files to 
 
 Also, a copy of the nim compiler needs to sit alongside ``embeddedNimScript/enims.nim`` or alternatively, it can be installed via ``nimble install compiler``.
 
-
 ## vmhooks
 
 vmhooks needs to grow a proc like:
@@ -53,6 +52,13 @@ let result = script1.call("subract", toNode(8), toNode(12)])
 # The result is wrapped in a PNode so we need to use corresponding proc from compiler/ast to get the value
 echo result.getInt() # -4
 ```
+
+### Running test.nim
+
+   In order to run `test.nim`, it needs to be compiled with
+   `-d:nimOldCaseObjects` for some reason. Otherwise we'll have a
+   runtime crash. ?!
+
 
 ## Watcher
 

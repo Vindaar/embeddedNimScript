@@ -82,21 +82,156 @@ template setStrField(res: var SomeObj, n: PNode, fieldName: string): NimNode =
   doAssert n.sons[0].sym.name.s == "name"
   doAssert n.sons[1].kind == nkStrLit
 
+proc extractName(n: NimNode): string =
+  case n.kind
+  of nnkPostfix:
+    doAssert n[1].kind == nnkIdent
+    result = n[1].strVal
+  of nnkIdent:
+    result = n.strVal
+  else:
+    error("extractName??? " & $n.kind)
+
+proc extractType(n: NimNode): NimNode =
+  # n is the type node
+  result = n
+
+proc extractNameType(n: NimNode): tuple[name: string, dtype: NimNode] =
+  result[0] = extractName(n[0])
+  result[1] = extractType(n[1])
+
+proc nodeToVal(dtype: NimNode): NimNode =
+  doAssert dtype.kind == nnkBracketExpr
+  case dtype[1].strVal
+  of "float":
+    result = ident("floatVal")
+  of "int":
+    result = ident("intVal")
+  of "string":
+    result = ident("strVal")
+  else:
+    error("??? broken")
+
+proc addFloatField(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
+  let fieldName = ident(name)
+  let resIdent = ident("result")
+  result = quote do:
+    doAssert `nId`.sons[`idx`].sons[1].kind == nkFloatLit
+    `resIdent`.`fieldName` = n.sons[`idx`].sons[1].floatVal
+
+proc addIntField(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
+  let fieldName = ident(name)
+  let resIdent = ident("result")
+  result = quote do:
+    doAssert `nId`.sons[`idx`].sons[1].kind == nkIntLit
+    `resIdent`.`fieldName` = n.sons[`idx`].sons[1].intVal.int
+
+proc addStringField(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
+  let fieldName = ident(name)
+  let resIdent = ident("result")
+  result = quote do:
+    doAssert `nId`.sons[`idx`].sons[1].kind == nkStrLit
+    `resIdent`.`fieldName` = n.sons[`idx`].sons[1].strVal
+
+proc handleScalar(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
+  let nameLit = newLit name
+  result = quote do:
+    doAssert `nId`.sons[`idx`].sons[0].kind == nkSym
+    doAssert `nId`.sons[`idx`].sons[0].sym.name.s == `nameLit`
+  # type specific doAssert and assignment
+  case dtype.strVal
+  of "float":
+    result.add addFloatField(nId, idx, name, dtype)
+  of "int":
+    result.add addIntField(nId, idx, name, dtype)
+  of "string":
+    result.add addStringField(nId, idx, name, dtype)
+  else:
+    error("handleScalar ??? " & $dtype.strVal)
+
+proc handleSeq(nId: NimNode, idx: int, name: string, dtype: NimNode): NimNode =
+  let nameLit = newLit name
+  let nodeToVal = dtype.nodeToVal
+  let fieldName = ident(name)
+  let resIdent = ident("result")
+  result = quote do:
+    doAssert `nId`.sons[`idx`].sons[0].kind == nkSym
+    doAssert `nId`.sons[`idx`].sons[0].sym.name.s == `nameLit`
+    for j in `nId`.sons[`idx`].sons[1].sons:
+      `resIdent`.`fieldName`.add j.`nodeToVal`
+  # type specific doAssert and assignment
+  # now have to iterate over the seq elements
+
+  #case dtype.strVal
+  #of "float":
+  #  result.add addFloatField(nId, idx, name, dtype)
+  #of "int":
+  #  result.add addIntField(nId, idx, name, dtype)
+  #of "string":
+  #  result.add addStringField(nId, idx, name, dtype)
+  #else:
+  #  error("handleScalar ??? " & $dtype.strVal)
+
 macro genGetProc(t: typedesc): untyped =
   let tImpl = t.getImpl
   echo "\n\n\n\n\n"
   let tsym = tImpl[0]
+  echo tImpl.treeRepr
   # - use name to generate ident for procs
-  # - iterate tImpl[2] IdentDefs to extract name / type pairs
+  # - iterate tImpl[2][2] IdentDefs to extract name / type pairs
+  let procName = ident("get" & $tSym)
+  echo "!!!! ", tImpl[2].treeRepr
+  doAssert tImpl[2].kind == nnkObjectTy
 
-  #result = quote do:
+  var idxNameType = newSeq[(int, string, NimNode)]()
+
+  var idx = 1 # start from 1, because PNode has one nkEmpty field at idx == 0
+  for ch in tImpl[2][2]:
+    case ch.kind
+    of nnkEmpty:
+      discard
+    of nnkIdentDefs:
+      let (name, dtype) = extractNameType(ch)
+      echo "Is ", name, " and ", dtype.repr
+      idxNameType.add (idx, name, dtype)
+    else:
+      error("genGetProc ??? " & $ch.treeRepr)
+    inc idx
+
+  echo idxNameType.repr
+
+  # using idxNameType, write the proc
+  let
+    aId = ident"a"
+    iId = ident"i"
+    nId = ident"n"
+  var procBody = newStmtList()
+  procBody.add quote do:
+    let `nId` = getVarNode(`aId`, `iId`)
+    doAssert `nId`.sons[0].kind == nkEmpty
+  # append the `doAssert` and assignments
+  let resId = ident("result")
+  for (idx, name, dtype) in idxNameType:
+    procBody.add quote do:
+      doAssert `nId`.sons[`idx`].kind == nkExprColonExpr
+    case dtype.kind
+    of nnkSym, nnkIdent:
+      procBody.add handleScalar(nId, idx, name, dtype)
+    of nnkBracketExpr:
+      procBody.add handleSeq(nId, idx, name, dtype)
+    else:
+      echo "No was ", dtype.kind
+      discard
+  result = quote do:
+    proc `procName`(`aId`: VmArgs, `iId`: Natural): `tsym` =
+      `procBody`
+
+  echo result.repr
 
 genGetProc(SomeObj)
-
+# genGetProc should generate something roughly like the `getObj` below
 proc getObj(a: VmArgs, i: Natural): SomeObj =
   let n = getVarNode(a, i)
-  var field: PNode
-  var val: PNode
   doAssert n.sons[0].kind == nkEmpty
   doAssert n.sons[1].kind == nkExprColonExpr
   doAssert n.sons[1].sons[0].kind == nkSym
@@ -153,6 +288,6 @@ proc exposeScriptApi* (script: Script) =
       echo "`", script.moduleName, "` has changed state.modifyMe to `", modifyMe, "`"
 
     expose modifyObject:
-      var modObj = getObj(a, 0)
+      var modObj = getSomeObj(a, 0)
       modObj.name = "test"
       echo "`", script.moduleName, "` has changed state.modifyObject to `", modObj, "`"
