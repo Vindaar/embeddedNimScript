@@ -1,7 +1,8 @@
 # embeddedNimScript
 Using NimScript as embedded scripting language, enabling hot loading among other neat things.
 
-This can call procs with arguments and return values both ways (nim -> nims & nims -> nim).
+This can call procs with arguments and return values both ways (nim ->
+nims & nims -> nim).
 
 
 ## Shared state
@@ -20,6 +21,19 @@ Furthermore, ``embeddedNimScript/enims.nim`` assumes these folders and files to 
 
 Also, a copy of the nim compiler needs to sit alongside ``embeddedNimScript/enims.nim`` or alternatively, it can be installed via ``nimble install compiler``.
 
+
+## vmhooks
+
+vmhooks needs to grow a proc like:
+```nim
+proc getVarNode*(a: VmArgs; i: Natural): PNode =
+  doAssert i < a.rc-1
+  let s = cast[seq[TFullReg]](a.slots)
+  doAssert s.kind == rkRegisterAddr
+  let sreal = s[i+a.rb+1].regAddr[]
+  doAssert sreal.kind == rkNode
+  result = sreal.node
+```
 
 ## Usage
 
